@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Boiler Curve Inspector — Traceable Sources &amp; EnergyPlus Fits</title>
 
+  <!--
+    Boiler Curve Inspector - Community single-file release.
+    Application code: MIT, Copyright (c) 2026 Binghang Li.
+    Data sources and license types (complete texts embedded in the Copyright & Licenses tab):
+      - OpenStudio(R) Standards (BSD-3-Clause style, Alliance for Sustainable Energy, LLC) - licenses/OpenStudio-Standards.txt
+      - LBL Modelica Buildings / Lochinvar Crest family table (revised BSD-3-Clause) - licenses/Modelica-Buildings.html
+      - EnergyPlus v25.2.0 Boilers.idf (BSD-3-Clause, U.S. DOE / LBNL / UIUC / ORNL) - licenses/EnergyPlus.txt
+      - NECB 2020/2025 coefficients independently implemented; NRC publications retain their copyright.
+    These notices and complete texts ship beside this page (THIRD_PARTY_NOTICES.md, licenses/) and are also embedded in the page itself.
+  -->
+
   <!-- Google Fonts: Google Sans Flex & Google Sans Code -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -282,6 +293,14 @@
       justify-content: center;
       box-sizing: border-box;
       white-space: nowrap;
+    }
+
+    .brand-badge-beta {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      font-weight: 700;
+      letter-spacing: 0.06em;
     }
 
     .brand-subtitle {
@@ -1399,9 +1418,43 @@
       max-height: 92vh;
       display: flex;
       flex-direction: column;
-      box-shadow: var(--shadow-lg);
-      overflow: hidden;
       animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: width 0.2s ease, height 0.2s ease, border-radius 0.2s ease;
+    }
+
+    .modal-backdrop.is-maximized {
+      padding: 0;
+    }
+
+    .modal-backdrop.is-maximized .modal-content,
+    .modal-content.is-maximized {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      border-radius: 0 !important;
+      border: none !important;
+    }
+
+    /* Comparison modal charts responsive height scaling */
+    #comp-family-3d {
+      height: clamp(480px, 50vh, 720px);
+      width: 100%;
+    }
+
+    #comp-family-plr,
+    #comp-family-temp {
+      height: clamp(340px, 36vh, 520px);
+      width: 100%;
+    }
+
+    .modal-backdrop.is-maximized #comp-family-3d {
+      height: clamp(580px, 64vh, 960px);
+    }
+
+    .modal-backdrop.is-maximized #comp-family-plr,
+    .modal-backdrop.is-maximized #comp-family-temp {
+      height: clamp(400px, 44vh, 640px);
     }
 
     @keyframes modalFadeIn {
@@ -1709,6 +1762,7 @@
         <div>
           <div class="brand-title">
             Boiler Curve Inspector
+            <span class="brand-badge brand-badge-beta">Beta</span>
             <span class="brand-badge">Illustrative Models &amp; Published Data</span>
           </div>
           <div class="brand-subtitle">Boiler reference data, source calculations &amp; EnergyPlus fits</div>
@@ -1784,8 +1838,8 @@
             </div>
           </div>
 
-<p id="curve-status-note" class="doc-p" style="font-size:var(--fs-xs);line-height:1.45;margin:0;color:var(--text-secondary);overflow-wrap:anywhere"></p>
-          <a id="family-comparison-link" class="btn" href="Illustrative_Family_Comparison.html?theme=dark" target="_blank" rel="noopener" style="display:none">Compare all four efficiency surfaces ↗</a>
+          <p id="curve-status-note" class="doc-p" style="font-size:var(--fs-xs);line-height:1.45;margin:0;color:var(--text-secondary);overflow-wrap:anywhere"></p>
+          <button type="button" id="family-comparison-link" class="btn" style="display:none"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> Compare all four efficiency surfaces</button>
           <p id="hot-end-guidance" class="doc-p" style="display:none;margin:0;font-size:var(--fs-xs);line-height:1.5;color:var(--text-secondary)">Full firing · return ≈71°C: model outputs ≈85–88% HHV. For an early-stage assumption, explore ≈86% HHV (η_LHV ≈ η_HHV × 1.11 ≈95% LHV) with 1–2 pp variations for sensitivity analysis. Prefer equipment-specific data; see Help for scope.</p>
 
           <div id="capacity-select-group" class="select-prefix-group" style="display:none">
@@ -1837,10 +1891,10 @@
 
           <div style="display: flex; flex-direction: column; gap: 8px;">
             <!-- Model Mode Switcher: Source calculation vs Standard Polynomial -->
-            <div class="view-segmented" id="model-mode-segmented" title="Compare the active model with its EnergyPlus export approximation" style="width: 100%;">
+            <div class="view-segmented" id="model-mode-segmented" title="Compare source calculation, EnergyPlus export fit and an independent empirical reference" style="width: 100%;">
               <button class="view-tab model-mode-tab is-active" id="mode-btn-saddle" data-engine="saddle" style="flex: 1; text-align: center;"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 9 10-6 10 6v10l-10 6-10-6Z"/><path d="m2 9 10 5 10-5"/><path d="M12 14v11"/></svg> Source calculation</button>
               <button class="view-tab model-mode-tab" id="mode-btn-biquad" data-engine="biquad" style="flex: 1; text-align: center;"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Published / derived curve</button>
-              <button class="view-tab model-mode-tab" id="mode-btn-reference" style="flex:1;min-width:0;white-space:normal" aria-label="Independent empirical physical reference">Physical reference</button>
+              <button class="view-tab model-mode-tab" id="mode-btn-reference" style="flex:1;min-width:0;white-space:normal" aria-label="Independent empirical reference">Independent empirical reference</button>
             </div>
 
             <p id="calculation-mode-note" class="doc-p" style="margin:0;font-size:var(--fs-xs);line-height:1.5;color:var(--text-secondary)" aria-live="polite"></p>
@@ -1920,9 +1974,9 @@
                   <span class="control-val-badge" id="badge-plr-val">0.60</span>
                 </div>
                 <div class="slider-track-wrap">
-                  <span class="slider-range-label">0.05</span>
+                  <span class="slider-range-label" id="slider-plr-min-label">0.25</span>
                   <input type="range" id="slider-plr" class="custom-slider" min="0.05" max="1.00" step="0.01" value="0.60">
-                  <span class="slider-range-label">1.00</span>
+                  <span class="slider-range-label" id="slider-plr-max-label">0.85</span>
                 </div>
               </div>
             </div>
@@ -2256,7 +2310,7 @@
 <div class="doc-section"><div class="doc-title">Nominal efficiency and units</div><div class="doc-p">The software presents efficiencies on an HHV basis. For CT3-17, HHV follows the EnergyPlus field convention used by the upstream application code; the original analysis basis remains unverified. See the active-model evidence note. Efficiency factors are dimensionless; they can coincide or cross even when absolute efficiencies differ. Nominal efficiency is a model reference, not a seasonal AFUE or combustion-efficiency value. Changing it proportionally scales the selected curve, creating a user scenario; it does not regenerate a different equipment design or preserve the default family-order guarantee. Crest normalization is locked to preserve the original table. Independent Physical reference changes do not rescale its locked source export. SI/IP changes display units; inlet temperature is converted back to °C for calculation.</div></div>
 <div class="doc-section"><div class="doc-title">Charts and exports</div><div class="doc-p">The charts use output PLR (useful heat / reference useful heat). Controls use the selected model domain. Published polynomials and table estimates hold inputs at their declared boundaries; NECB source formulas reject nonpositive fuel fractions. A displayed or fitted envelope does not establish equipment performance outside that envelope. CSV contains the selected calculation, source link, HHV efficiency and modifier. IDF uses the published curve or labelled derived fit; inspect its envelope before integrating the node names into a plant.</div></div>
 <div class="doc-section"><div class="doc-title">Read the full guide</div><div class="doc-p"><a href="Community_Help.html" target="_blank" rel="noopener">Open the standalone Community help</a>. The release includes a Chinese user guide, method, data-source notes and release notes in docs/. The main HTML contains its Help tabs; the four-tier dashboard and its CSV are companion files that must be kept beside it.</div></div>
-<div class="doc-section"><div class="doc-title">Network and licenses</div><div class="doc-p">The HTML requires network access for Plotly and fonts. Complete imported licenses are embedded in the Copyright &amp; Licenses tab and shipped with the release.</div></div>
+<div class="doc-section"><div class="doc-title">Network and licenses</div><div class="doc-p">The HTML requires network access for Plotly and fonts. Complete imported licenses are embedded in the Copyright &amp; Licenses tab and also shipped beside this page as LICENSE, THIRD_PARTY_NOTICES.md and licenses/.</div></div>
         </div>
 
         <!-- Tab Pane 2: Theory & Equations -->
@@ -2270,7 +2324,7 @@
 <div class="doc-section"><div class="doc-title">OpenStudio CT3-17 arithmetic check</div><div class="doc-p">At inlet 71.13°C and output PLR 1, the published fit gives f = 0.9132550984; 0.962 × f = 87.8551%. This is a published-model cross-check under the EnergyPlus HHV convention, not independent equipment validation or verification of the original rating anchor. Output PLR 1 is nominal useful heat output, not necessarily full fuel firing. The raw JSON labels the dependent variable FIRRatio, but upstream code assigns this polynomial directly as the normalized boiler efficiency curve.</div></div>
 <div class="doc-section"><div class="doc-title">High-temperature evidence coverage</div><div class="doc-p">Crest endpoint data and the OpenStudio CT3-17 fit provide a magnitude comparison near 88%; they do not independently validate the four-tier model. The lower 84.96% and 86.62% scenarios lack independent equipment evidence. At inlet 71.13°C and output PLR 1, the EnergyPlus example gives 0.89 × 0.9975563812 = 88.7825% HHV, so it does not corroborate the lower tiers. It is a typical example citing Viessmann literature, not a verified low-efficiency product. Holding the CT3 fit fixed and hypothetically changing its nominal multiplier to 0.981 gives 89.5903%, a 1.7352 pp increase; this is sensitivity only, not a justified replacement or uncertainty interval. The available evidence does not establish the dominant source of uncertainty.</div></div>
 <div class="doc-section"><div class="doc-title">High-temperature mechanism and uncertainty</div><div class="doc-p">At high return temperatures, the condensing contribution diminishes and sensible heat recovery and other losses dominate. Higher part-load efficiency can occur during stable modulation; very-low-load cycling losses need separate consideration. The 1–2 pp variations are analysis scenarios, not a measured uncertainty interval. RMSE and maximum errors quantify the export polynomial versus the estimated model, not the model versus real equipment.</div></div>
-<div class="doc-section"><div class="doc-title">Physical interpretation</div><div class="doc-p">The approximate 54°C dew-point marker is context only; it is not a universal boiler operating limit or an extra efficiency correction. Physical reference is an independent empirical model with a dew-point transition, part-load response and assumed cycling penalty: nominal anchor 26.7°C at PLR 1, with a 100% HHV upper bound. It is available for applicable published condensing comparison models, but hidden for the recommended illustrative family. It is not measured manufacturer data or a validation of the source curve. IDF continues to export the source polynomial or derived source fit; locked Crest source normalization is retained. A numeric efficiency range check does not certify a model or establish code compliance.</div></div>
+<div class="doc-section"><div class="doc-title">Physical interpretation</div><div class="doc-p">The approximate 54°C dew-point marker is context only; it is not a universal boiler operating limit or an extra efficiency correction. Physical reference is an independent empirical model with a dew-point transition, part-load response and assumed cycling penalty: nominal anchor 26.7°C at PLR 1, with a 100% HHV upper bound. It is available for applicable published condensing models and the 90/94/96/98% Illustrative scenarios, under the button Independent empirical reference. The 80/86% dry assumptions do not use this condensing reference. Illustrative comparisons retain the source plot range and nominal efficiency, and automatic axes include all three model responses. The PLR chart overlays the Illustrative model and empirical reference at the selected inlet temperature. Illustrative load response comes from three transformed Crest firing-rate nodes and adds no cycling-loss model; the empirical cycling penalty below PLR 0.12 is outside the shared comparison range. Each model retains its own normalization anchor: Illustrative at 26.629381°C and full fuel firing; empirical reference at 26.7°C and output PLR 1. Differences compare assumptions and do not measure equipment accuracy. CSV exports the selected calculation, including reference mode. It is not measured manufacturer data or a validation of the source curve. IDF continues to export the source polynomial or derived source fit; locked Crest source normalization is retained. A numeric efficiency range check does not certify a model or establish code compliance.</div></div>
         </div>
 
         <!-- Tab Pane 3: Standards and Citations -->
@@ -2285,7 +2339,7 @@
 
         <!-- Tab Pane 5: MIT Open Source License & Author Attribution -->
         <div class="modal-tab-pane" id="pane-license">
-<div class="doc-section"><div class="doc-title">Community copyright and third-party licenses</div><div class="doc-p">Application author: <strong>Binghang Li</strong>. Community application code is MIT licensed. Imported data retain the upstream license terms below. No institutional or manufacturer endorsement is implied.</div></div><div class="doc-section"><div class="doc-title">MIT License</div><div class="doc-p"><pre class="code-pre" style="white-space:pre-wrap">MIT License
+<div class="doc-section"><div class="doc-title">Original license files shipped with this release</div><div class="doc-p">The complete upstream texts are embedded below and also shipped beside this page: <a href="THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a> · <a href="licenses/OpenStudio-Standards.txt">licenses/OpenStudio-Standards.txt</a> · <a href="licenses/Modelica-Buildings.html">licenses/Modelica-Buildings.html</a> · <a href="licenses/EnergyPlus.txt">licenses/EnergyPlus.txt</a>.</div></div><div class="doc-section"><div class="doc-title">Community copyright and third-party licenses</div><div class="doc-p">Application author: <strong>Binghang Li</strong>. Community application code is MIT licensed. Imported data retain the upstream license terms below. No institutional or manufacturer endorsement is implied.</div></div><div class="doc-section"><div class="doc-title">MIT License</div><div class="doc-p"><pre class="code-pre" style="white-space:pre-wrap">MIT License
 
 Copyright (c) 2026 Binghang Li
 
@@ -2511,6 +2565,109 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
     </div>
   </div>
 
+  <!-- Four-Tier Curve Comparison Modal -->
+  <div class="modal-backdrop" id="comparison-modal">
+    <div class="modal-content" style="width: min(1560px, 98vw); height: min(940px, 96vh);">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span style="color: var(--accent-blue); display: inline-flex; align-items: center;"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span>
+          <span>Four Efficiency Tiers — Full Family Comparison Dashboard</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn btn-icon" id="btn-max-comparison-modal" aria-label="Maximize / Restore Comparison Dashboard" style="font-size: 14px; display: inline-flex; align-items: center; justify-content: center; padding: 6px;">
+            <svg class="icon-svg" id="comp-max-icon" style="width: 14px; height: 14px; margin: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+          </button>
+          <button type="button" class="btn btn-icon" id="btn-close-comparison-modal" aria-label="Close Comparison Dashboard" style="font-size: 14px; display: inline-flex; align-items: center; justify-content: center; padding: 6px;">
+            <svg class="icon-svg" style="width: 14px; height: 14px; margin: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 16px 20px; overflow-y: auto;">
+        <p style="margin: 0 0 12px; font-size: var(--fs-xs); color: var(--text-secondary);">
+          ILLUSTRATIVE engineering scenarios seeded by the published Crest HHV table. Higher tiers improve both dry sensible recovery and condensing-associated recovery.
+        </p>
+
+        <!-- Controls Bar -->
+        <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 14px; padding: 10px 14px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+          <div class="view-segmented" id="comp-mode-segmented">
+            <button type="button" class="view-tab is-active" id="comp-source-mode">Estimated model</button>
+            <button type="button" class="view-tab" id="comp-fit-mode">EnergyPlus approximation</button>
+          </div>
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-weight: 600;">
+            Output PLR
+            <input id="comp-plr" type="range" class="custom-slider" min="0" max="60" value="30" style="width: 120px;">
+            <strong id="comp-plr-value" class="control-val-badge">0.55</strong>
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-weight: 600;">
+            RWT (inlet)
+            <input id="comp-temp" type="range" class="custom-slider" min="0" max="100" value="48" style="width: 120px;">
+            <strong id="comp-temp-value" class="control-val-badge">45.0°C</strong>
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); cursor: pointer; user-select: none;">
+            <input id="comp-show-tracers" type="checkbox" checked style="accent-color: var(--accent-blue); cursor: pointer;">
+            Show traces
+          </label>
+          <button type="button" class="btn" id="comp-download-csv" style="margin-left: auto; font-size: var(--fs-xs);">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Model Data CSV
+          </button>
+        </div>
+
+        <p id="comp-status-text" style="font-size: var(--fs-xs); color: var(--text-secondary); margin: 0 0 12px;"></p>
+
+        <!-- Charts Deck -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+          <div style="grid-column: 1 / -1; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;">
+            <div style="padding: 10px 14px 4px; font-weight: 600; font-size: var(--fs-sm); color: var(--text-primary);">
+              Absolute HHV efficiency — four distinct surfaces
+            </div>
+            <div id="comp-family-3d"></div>
+          </div>
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;">
+            <div id="comp-family-plr-title" style="padding: 10px 14px 4px; font-weight: 600; font-size: var(--fs-sm); color: var(--text-primary);">
+              Partial-load response
+            </div>
+            <div id="comp-family-plr"></div>
+          </div>
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;">
+            <div id="comp-family-temp-title" style="padding: 10px 14px 4px; font-weight: 600; font-size: var(--fs-sm); color: var(--text-primary);">
+              Return water temperature response
+            </div>
+            <div id="comp-family-temp"></div>
+          </div>
+        </div>
+
+        <!-- Metrics Table -->
+        <div style="overflow-x: auto; margin-bottom: 16px;">
+          <table class="doc-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Low-temperature anchor</th>
+                <th>High-temperature model output (% HHV)</th>
+                <th>Relative sensible index</th>
+                <th>Residual-recovery index</th>
+                <th>Export fit vs model: max error (pp)</th>
+              </tr>
+            </thead>
+            <tbody id="comp-table-body"></tbody>
+          </table>
+        </div>
+
+        <!-- Notes -->
+        <div class="doc-section" style="margin-top: 10px;">
+          <div class="doc-p" style="font-size: var(--fs-xs); line-height: 1.55; color: var(--text-secondary);">
+            <p><strong>Note</strong>: At full firing and a return temperature of about 71°C, this model gives about 85–88% HHV across the four scenarios, with smaller differences at the hot end. Without equipment data, an early-stage high-temperature assumption of about 86% HHV (&eta;<sub>LHV</sub> &asymp; &eta;<sub>HHV</sub> &times; 1.11, or about 95% LHV) can be explored with upward and downward variations of 1–2 percentage points for sensitivity analysis. Use manufacturer data for the corresponding conditions when available; small differences between adjacent scenarios have not been validated against equipment data and should not be overinterpreted.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 10px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+        <button class="btn" id="btn-footer-close-comp">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div class="toast" id="app-toast">Success</div>
 
@@ -2610,13 +2767,13 @@ const RECOMMENDED_TIERS = [
   },
   {
     "id": "illustrative_86",
-    "text": "86% | Dry-branch noncondensing assumption · ILLUSTRATIVE",
-    "name": "86% | Dry-branch noncondensing assumption · ILLUSTRATIVE"
+    "text": "86% | Forced-draft noncondensing archetype · ILLUSTRATIVE",
+    "name": "86% | Forced-draft noncondensing archetype · ILLUSTRATIVE"
   },
   {
     "id": "illustrative_80",
-    "text": "80% | Dry-branch noncondensing assumption · ILLUSTRATIVE",
-    "name": "80% | Dry-branch noncondensing assumption · ILLUSTRATIVE"
+    "text": "80% | Atmospheric noncondensing archetype · ILLUSTRATIVE",
+    "name": "80% | Atmospheric noncondensing archetype · ILLUSTRATIVE"
   }
 ];
 const BOILER_DATABASE = {
@@ -3462,6 +3619,42 @@ const BOILER_DATABASE = {
     "ratingCondition": "Dataset specifies nominal efficiency 0.89; inlet temperature 30–85°C",
     "description": "Typical example based on Viessmann technical literature; not a specific certified product."
   },
+  "eplus_80": {
+    "calorificBasis": "HHV",
+    "temperatureVariable": "LeavingBoiler",
+    "id": "eplus_80",
+    "tier": "80%",
+    "category": "eplus",
+    "nomEff": 0.8,
+    "name": "80% reference | EnergyPlus NonCondensingBoilerEff",
+    "type": "Generic non-condensing example curve",
+    "isCondensing": false,
+    "curveForm": "Bicubic",
+    "coeffs": [
+      1.111720116,
+      0.078614078,
+      -0.400425756,
+      0,
+      -0.000156783,
+      0.009384599,
+      0.234257955,
+      0.00000132927,
+      -0.004446701,
+      -0.0000122498
+    ],
+    "limits": {
+      "minX": 0.1,
+      "maxX": 1,
+      "minY": 20,
+      "maxY": 80
+    },
+    "source": "EnergyPlus 25.2.0 datasets/Boilers.idf",
+    "sourceUrl": "https://github.com/NatLabRockies/EnergyPlus/blob/v25.2.0/datasets/Boilers.idf",
+    "sourceBlob": "77b349e699a7cd11c6a4d6098687c507041cf16b",
+    "license": "licenses/EnergyPlus.txt",
+    "ratingCondition": "Dataset specifies nominal efficiency 0.80; leaving water temperature 20–80°C",
+    "description": "Typical non-condensing Curve:Bicubic example based on Viessmann technical literature; not a specific certified product."
+  },
   "necb_2020_cond_90": {
     "calorificBasis": "HHV",
     "temperatureVariable": "EnteringBoiler",
@@ -3740,21 +3933,21 @@ const BOILER_DATABASE = {
       "plr": 1
     },
     "coeffs": [
-      1.0771140582881715,
-      0.01679351401988572,
-      -0.024240300410694932,
-      -0.00294535328366295,
-      0.0000027209986964738775,
-      0.00001155881564975435
+      1.0775752517776698,
+      0.014892012035696487,
+      -0.02061099130460529,
+      -0.002947331594297196,
+      0.00000284425919907197,
+      -0.000022733571318076873
     ],
     "derivedFit": {
       "coeffs": [
-        1.0771140582881715,
-        0.01679351401988572,
-        -0.024240300410694932,
-        -0.00294535328366295,
-        0.0000027209986964738775,
-        0.00001155881564975435
+        1.0775752517776698,
+        0.014892012035696487,
+        -0.02061099130460529,
+        -0.002947331594297196,
+        0.00000284425919907197,
+        -0.000022733571318076873
       ],
       "limits": {
         "minX": 0.25,
@@ -3766,16 +3959,16 @@ const BOILER_DATABASE = {
       },
       "validation": {
         "sampleCount": 6557,
-        "rmsePercentagePoints": 0.9829945292106901,
-        "maxErrorPercentagePoints": 2.0217291693918864,
-        "rSquared": 0.9466335831286978
+        "rmsePercentagePoints": 1.0305079639734667,
+        "maxErrorPercentagePoints": 2.138909815749031,
+        "rSquared": 0.9425508378591265
       },
       "method": "OLS: 41 PLR x 37 temperature nodes (1D: 41 nodes); offset validation grid 83 x 79 (1D: 83). Joint bounded projection, with continuous rectangle extrema checks.",
       "orderingConstraint": {
         "minimumGapPercentagePoints": 0.1,
         "upperEfficiencyHHV": 0.999,
         "method": "joint bounded normalized-coefficient projection after OLS",
-        "adjustmentPercentagePoints": 1.656900893999405,
+        "adjustmentPercentagePoints": 1.7791894715191376,
         "verification": "Analytic rectangle extrema: corners, edge stationary points and interior stationary point. Default nominal efficiencies only."
       }
     },
@@ -3874,21 +4067,21 @@ const BOILER_DATABASE = {
       "plr": 1
     },
     "coeffs": [
-      1.1330813759301837,
-      -0.007028483352736477,
-      -0.024770437300703763,
-      -0.004849601189663335,
-      0.00002185182476965818,
-      0.0003520598032889926
+      1.1335457333803451,
+      -0.005645212454004331,
+      -0.02208705938305078,
+      -0.004890525580198714,
+      0.00002243990068302369,
+      0.00028906294845413135
     ],
     "derivedFit": {
       "coeffs": [
-        1.1330813759301837,
-        -0.007028483352736477,
-        -0.024770437300703763,
-        -0.004849601189663335,
-        0.00002185182476965818,
-        0.0003520598032889926
+        1.1335457333803451,
+        -0.005645212454004331,
+        -0.02208705938305078,
+        -0.004890525580198714,
+        0.00002243990068302369,
+        0.00028906294845413135
       ],
       "limits": {
         "minX": 0.25,
@@ -3900,16 +4093,16 @@ const BOILER_DATABASE = {
       },
       "validation": {
         "sampleCount": 6557,
-        "rmsePercentagePoints": 0.6041631519033108,
-        "maxErrorPercentagePoints": 1.2588632449118968,
-        "rSquared": 0.9750458023608235
+        "rmsePercentagePoints": 0.6418363214653713,
+        "maxErrorPercentagePoints": 1.2772191825249344,
+        "rSquared": 0.9726118267238645
       },
       "method": "OLS: 41 PLR x 37 temperature nodes (1D: 41 nodes); offset validation grid 83 x 79 (1D: 83). Joint bounded projection, with continuous rectangle extrema checks.",
       "orderingConstraint": {
         "minimumGapPercentagePoints": 0.1,
         "upperEfficiencyHHV": 0.999,
         "method": "joint bounded normalized-coefficient projection after OLS",
-        "adjustmentPercentagePoints": 0.5980415722026181,
+        "adjustmentPercentagePoints": 0.773012715502794,
         "verification": "Analytic rectangle extrema: corners, edge stationary points and interior stationary point. Default nominal efficiencies only."
       }
     },
@@ -4008,21 +4201,21 @@ const BOILER_DATABASE = {
       "plr": 1
     },
     "coeffs": [
-      1.1541098643231453,
-      -0.022639969574651794,
-      -0.024030212661754435,
-      -0.005460931282989509,
-      0.00002991213112919725,
-      0.0005573318799341247
+      1.158914402033542,
+      -0.02559419438448647,
+      -0.020377784556984187,
+      -0.005594539075524068,
+      0.00003098591150083047,
+      0.0005402840053411836
     ],
     "derivedFit": {
       "coeffs": [
-        1.1541098643231453,
-        -0.022639969574651794,
-        -0.024030212661754435,
-        -0.005460931282989509,
-        0.00002991213112919725,
-        0.0005573318799341247
+        1.158914402033542,
+        -0.02559419438448647,
+        -0.020377784556984187,
+        -0.005594539075524068,
+        0.00003098591150083047,
+        0.0005402840053411836
       ],
       "limits": {
         "minX": 0.25,
@@ -4034,16 +4227,16 @@ const BOILER_DATABASE = {
       },
       "validation": {
         "sampleCount": 6557,
-        "rmsePercentagePoints": 0.38122743004037496,
-        "maxErrorPercentagePoints": 0.9808512934056934,
-        "rSquared": 0.9871132577168362
+        "rmsePercentagePoints": 0.3932671236402457,
+        "maxErrorPercentagePoints": 0.9429305490016481,
+        "rSquared": 0.9867302494346581
       },
       "method": "OLS: 41 PLR x 37 temperature nodes (1D: 41 nodes); offset validation grid 83 x 79 (1D: 83). Joint bounded projection, with continuous rectangle extrema checks.",
       "orderingConstraint": {
         "minimumGapPercentagePoints": 0.1,
         "upperEfficiencyHHV": 0.999,
         "method": "joint bounded normalized-coefficient projection after OLS",
-        "adjustmentPercentagePoints": 0.22307747867622946,
+        "adjustmentPercentagePoints": 0.26894054875448953,
         "verification": "Analytic rectangle extrema: corners, edge stationary points and interior stationary point. Default nominal efficiencies only."
       }
     },
@@ -4142,21 +4335,21 @@ const BOILER_DATABASE = {
       "plr": 1
     },
     "coeffs": [
-      1.1383495345029642,
-      -0.029959349366345776,
-      -0.01921888546889645,
-      -0.004661665295770238,
-      0.000027818720845441972,
-      0.0005847196942968573
+      1.1435886668010247,
+      -0.0346460046331436,
+      -0.014147709187416653,
+      -0.004795104553240322,
+      0.00002896527554469235,
+      0.0005709722217963185
     ],
     "derivedFit": {
       "coeffs": [
-        1.1383495345029642,
-        -0.029959349366345776,
-        -0.01921888546889645,
-        -0.004661665295770238,
-        0.000027818720845441972,
-        0.0005847196942968573
+        1.1435886668010247,
+        -0.0346460046331436,
+        -0.014147709187416653,
+        -0.004795104553240322,
+        0.00002896527554469235,
+        0.0005709722217963185
       ],
       "limits": {
         "minX": 0.25,
@@ -4168,16 +4361,16 @@ const BOILER_DATABASE = {
       },
       "validation": {
         "sampleCount": 6557,
-        "rmsePercentagePoints": 0.1614237105213897,
-        "maxErrorPercentagePoints": 0.5829959074374136,
-        "rSquared": 0.9955183114050552
+        "rmsePercentagePoints": 0.15981938867651058,
+        "maxErrorPercentagePoints": 0.603834584824603,
+        "rSquared": 0.9957729603956507
       },
       "method": "OLS: 41 PLR x 37 temperature nodes (1D: 41 nodes); offset validation grid 83 x 79 (1D: 83). Joint bounded projection, with continuous rectangle extrema checks.",
       "orderingConstraint": {
         "minimumGapPercentagePoints": 0.1,
         "upperEfficiencyHHV": 0.999,
         "method": "joint bounded normalized-coefficient projection after OLS",
-        "adjustmentPercentagePoints": 1.9984014443252818e-14,
+        "adjustmentPercentagePoints": 8.609531400472518e-15,
         "verification": "Analytic rectangle extrema: corners, edge stationary points and interior stationary point. Default nominal efficiencies only."
       }
     },
@@ -4252,73 +4445,70 @@ const BOILER_DATABASE = {
     "id": "illustrative_86",
     "tier": "86%",
     "category": "illustrative",
-    "name": "86% | Dry-branch noncondensing assumption · ILLUSTRATIVE",
+    "name": "86% | Forced-draft noncondensing archetype · ILLUSTRATIVE",
     "type": "Manufacturer-seeded illustrative engineering estimate",
     "isIllustrative": true,
     "isCondensing": false,
     "nomEff": 0.86,
     "curveForm": "Illustrative",
     "illustrativeModel": {
-      "kind": "crest-decomposition",
-      "mode": "dry",
-      "dryTemperatureIndices": [
-        8,
-        9
-      ]
+      "kind": "empirical-archetype",
+      "type": "forcedDraft",
+      "mode": "noncondensing"
     },
     "illustrativeAnchor": {
-      "tempC": 65.59284116331105,
+      "tempC": 60,
       "firingRate": 1,
       "plr": 1
     },
     "coeffs": [
-      1.0273378628004088,
-      -0.011595992431921429,
-      -0.0016606424399769127,
-      -0.0002965451732250439,
-      1.2278747699993243e-8,
-      0.00007956371218920802
+      1.051189302325596,
+      0.026132325581401952,
+      -0.019730000000006458,
+      -0.0009064883720936032,
+      5.028176774881318e-18,
+      -0.000053372093023256703
     ],
     "derivedFit": {
       "coeffs": [
-        1.0273378628004088,
-        -0.011595992431921429,
-        -0.0016606424399769127,
-        -0.0002965451732250439,
-        1.2278747699993243e-8,
-        0.00007956371218920802
+        1.051189302325596,
+        0.026132325581401952,
+        -0.019730000000006458,
+        -0.0009064883720936032,
+        5.028176774881318e-18,
+        -0.000053372093023256703
       ],
       "limits": {
-        "minX": 0.25,
-        "maxX": 0.85,
-        "minY": 65.59284116331105,
-        "maxY": 71.12975391498804,
+        "minX": 0.1,
+        "maxX": 1,
+        "minY": 30,
+        "maxY": 85,
         "minOut": 0,
         "maxOut": 1.1627906976744187
       },
       "validation": {
         "sampleCount": 6557,
-        "rmsePercentagePoints": 0.0013829167000734166,
-        "maxErrorPercentagePoints": 0.004965116639192857,
-        "rSquared": 0.9998754464468823
+        "rmsePercentagePoints": 1.0947101419162043e-13,
+        "maxErrorPercentagePoints": 3.055333763768431e-13,
+        "rSquared": 1
       },
       "method": "OLS: 41 PLR x 37 temperature nodes (1D: 41 nodes); offset validation grid 83 x 79 (1D: 83)."
     },
     "limits": {
-      "minX": 0.25,
-      "maxX": 0.85,
-      "minY": 65.59284116331105,
-      "maxY": 71.12975391498804,
+      "minX": 0.1,
+      "maxX": 1,
+      "minY": 30,
+      "maxY": 85,
       "minOut": 0,
       "maxOut": 1.1627906976744187
     },
     "hhvEfficiencyCap": 1,
-    "source": "Crest table + project decomposition and calibration assumptions; Assumption only: high-temperature Crest dry branch; no noncondensing map verified",
+    "source": "Empirical physical archetype; Representative forced-draft noncondensing archetype with sensible recovery and fan modulation",
     "sourceUrl": "https://github.com/lbl-srg/modelica-buildings/blob/11e34d2187abaac63d5b63b269a7e16543403441/Buildings/Fluid/Boilers/Data/Lochinvar/Crest/FBdash2501.mo",
     "sourceBlob": "1acd5188773f252cefd9a6751c3e7b4ccefc6039",
     "sourceFile": "community/data/illustrative-curves.json",
     "license": "licenses/Modelica-Buildings.html; project estimation code MIT. No endorsement.",
-    "evidenceStatus": "Assumption only: high-temperature Crest dry branch; no noncondensing map verified",
+    "evidenceStatus": "Representative forced-draft noncondensing archetype with sensible recovery and fan modulation",
     "seedSource": {
       "file": "community/data/boiler-sources.json",
       "record": "crest",
@@ -4363,10 +4553,10 @@ const BOILER_DATABASE = {
     "highTemperatureReference": {
       "tempC": 71.12975391498804,
       "firingRate": 1,
-      "efficiency": 0.859058577405858
+      "efficiency": 0.8508126107382558
     },
-    "ratingCondition": "Assumed full-firing anchor: inlet 65.593°C; 86% HHV. Common plot PLR 0.25–0.85; not an equipment rating.",
-    "description": "ILLUSTRATIVE: Assumption only: high-temperature Crest dry branch; no noncondensing map verified. High-temperature dry-branch offset assumption. Output PLR is recalculated from fuel firing. HHV ≤100%. Prefer equipment-specific manufacturer data."
+    "ratingCondition": "Rated anchor: inlet 60°C / PLR 1; 86% HHV. Baseline empirical archetype.",
+    "description": "ILLUSTRATIVE: Representative forced-draft noncondensing archetype with sensible recovery and fan modulation. Representative empirical archetype with physical temperature slope and part-load curvature. Output PLR is recalculated from fuel firing. HHV ≤100%. Prefer equipment-specific manufacturer data."
   },
   "illustrative_80": {
     "calorificBasis": "HHV",
@@ -4374,73 +4564,70 @@ const BOILER_DATABASE = {
     "id": "illustrative_80",
     "tier": "80%",
     "category": "illustrative",
-    "name": "80% | Dry-branch noncondensing assumption · ILLUSTRATIVE",
+    "name": "80% | Atmospheric noncondensing archetype · ILLUSTRATIVE",
     "type": "Manufacturer-seeded illustrative engineering estimate",
     "isIllustrative": true,
     "isCondensing": false,
     "nomEff": 0.8,
     "curveForm": "Illustrative",
     "illustrativeModel": {
-      "kind": "crest-decomposition",
-      "mode": "dry",
-      "dryTemperatureIndices": [
-        8,
-        9
-      ]
+      "kind": "empirical-archetype",
+      "type": "atmospheric",
+      "mode": "noncondensing"
     },
     "illustrativeAnchor": {
-      "tempC": 65.59284116331105,
+      "tempC": 60,
       "firingRate": 1,
       "plr": 1
     },
     "coeffs": [
-      1.0293918672478355,
-      -0.012446544117485445,
-      -0.0017914936194565014,
-      -0.00031891358632797704,
-      1.4174914438661509e-8,
-      0.0000853453526077069
+      1.0119435000000405,
+      0.20296149999999016,
+      -0.13862999999999065,
+      -0.0012602250000014088,
+      1.218599742571935e-17,
+      -0.000011024999999995152
     ],
     "derivedFit": {
       "coeffs": [
-        1.0293918672478355,
-        -0.012446544117485445,
-        -0.0017914936194565014,
-        -0.00031891358632797704,
-        1.4174914438661509e-8,
-        0.0000853453526077069
+        1.0119435000000405,
+        0.20296149999999016,
+        -0.13862999999999065,
+        -0.0012602250000014088,
+        1.218599742571935e-17,
+        -0.000011024999999995152
       ],
       "limits": {
-        "minX": 0.25,
-        "maxX": 0.85,
-        "minY": 65.59284116331105,
-        "maxY": 71.12975391498804,
+        "minX": 0.1,
+        "maxX": 1,
+        "minY": 30,
+        "maxY": 85,
         "minOut": 0,
         "maxOut": 1.25
       },
       "validation": {
         "sampleCount": 6557,
-        "rmsePercentagePoints": 0.0013828160039579638,
-        "maxErrorPercentagePoints": 0.004975950814198883,
-        "rSquared": 0.9998754843062337
+        "rmsePercentagePoints": 2.4330011449551835e-13,
+        "maxErrorPercentagePoints": 7.105427357601002e-13,
+        "rSquared": 1
       },
       "method": "OLS: 41 PLR x 37 temperature nodes (1D: 41 nodes); offset validation grid 83 x 79 (1D: 83)."
     },
     "limits": {
-      "minX": 0.25,
-      "maxX": 0.85,
-      "minY": 65.59284116331105,
-      "maxY": 71.12975391498804,
+      "minX": 0.1,
+      "maxX": 1,
+      "minY": 30,
+      "maxY": 85,
       "minOut": 0,
       "maxOut": 1.25
     },
     "hhvEfficiencyCap": 1,
-    "source": "Crest table + project decomposition and calibration assumptions; Assumption only: high-temperature Crest dry branch; no noncondensing map verified",
+    "source": "Empirical physical archetype; Representative atmospheric cast-iron archetype with draft-hood dilution loss at part-load",
     "sourceUrl": "https://github.com/lbl-srg/modelica-buildings/blob/11e34d2187abaac63d5b63b269a7e16543403441/Buildings/Fluid/Boilers/Data/Lochinvar/Crest/FBdash2501.mo",
     "sourceBlob": "1acd5188773f252cefd9a6751c3e7b4ccefc6039",
     "sourceFile": "community/data/illustrative-curves.json",
     "license": "licenses/Modelica-Buildings.html; project estimation code MIT. No endorsement.",
-    "evidenceStatus": "Assumption only: high-temperature Crest dry branch; no noncondensing map verified",
+    "evidenceStatus": "Representative atmospheric cast-iron archetype with draft-hood dilution loss at part-load",
     "seedSource": {
       "file": "community/data/boiler-sources.json",
       "record": "crest",
@@ -4485,10 +4672,10 @@ const BOILER_DATABASE = {
     "highTemperatureReference": {
       "tempC": 71.12975391498804,
       "firingRate": 1,
-      "efficiency": 0.7990585774058582
+      "efficiency": 0.7886810402684571
     },
-    "ratingCondition": "Assumed full-firing anchor: inlet 65.593°C; 80% HHV. Common plot PLR 0.25–0.85; not an equipment rating.",
-    "description": "ILLUSTRATIVE: Assumption only: high-temperature Crest dry branch; no noncondensing map verified. High-temperature dry-branch offset assumption. Output PLR is recalculated from fuel firing. HHV ≤100%. Prefer equipment-specific manufacturer data."
+    "ratingCondition": "Rated anchor: inlet 60°C / PLR 1; 80% HHV. Baseline empirical archetype.",
+    "description": "ILLUSTRATIVE: Representative atmospheric cast-iron archetype with draft-hood dilution loss at part-load. Representative empirical archetype with physical temperature slope and part-load curvature. Output PLR is recalculated from fuel firing. HHV ≤100%. Prefer equipment-specific manufacturer data."
   }
 };
 
@@ -4592,8 +4779,23 @@ function transferRow(dry,source,shape) {
   const recovered=1-Math.pow(1-residual,shape.condensingTransferIndex);
   return sensible+(1-sensible)*recovered;
 }
+function evaluateIllustrativeArchetype(type, tempC, plr, nominal) {
+  const tf = tempC * 1.8 + 32;
+  if(type === 'atmospheric') {
+    const draft = (0.20230 * (plr - 1.0) - 0.13863 * (plr * plr - 1.0)) * 80.0;
+    const eta = 80.0 - (tf - 140.0) * 0.0565 + (tf - 140.0) * (1.0 - plr) * 0.00049 + draft;
+    return Math.max(0, Math.min(1, eta / 100)) / (nominal || 0.80);
+  }
+  if(type === 'forcedDraft') {
+    const blower = (0.02293 * (plr - 1.0) - 0.01973 * (plr * plr - 1.0)) * 86.0;
+    const eta = 86.0 - (tf - 140.0) * 0.04586 + (tf - 140.0) * (1.0 - plr) * 0.00255 + blower;
+    return Math.max(0, Math.min(1, eta / 100)) / (nominal || 0.86);
+  }
+  return NaN;
+}
+
 function calibrateIllustrativeShape(table,shape,anchor,nominal) {
-  if(shape.mode==='dry')return {...shape};
+  if(shape.kind==='empirical-archetype' || shape.mode==='dry')return {...shape};
   const calibrated={...shape,sensibleTransferIndex:Math.pow(nominal/table.referenceEfficiency,shape.sensibleIndexExponent)};
   const full=sourceComponents(table,shape,anchor.tempC).at(-1);
   const value=k=>transferRow(full.dry,full.source,{...calibrated,condensingTransferIndex:k});
@@ -4605,6 +4807,9 @@ function calibrateIllustrativeShape(table,shape,anchor,nominal) {
   return calibrated;
 }
 function estimateCrestRawRows(table,shape,anchor,tempC,nominal) {
+  if(shape.kind==='empirical-archetype') {
+    return table.firingRates.map(r => evaluateIllustrativeArchetype(shape.type, tempC, r, nominal) * nominal);
+  }
   const rows=sourceComponents(table,shape,tempC);
   if(shape.mode==='dry') {
     const dryAnchor=sourceComponents(table,shape,anchor.tempC).at(-1).dry;
@@ -4613,25 +4818,33 @@ function estimateCrestRawRows(table,shape,anchor,tempC,nominal) {
   return rows.map(row=>transferRow(row.dry,row.source,shape));
 }
 function estimateCrestFiring(table,shape,anchor,tempC,firing,nominal) {
+  if(shape?.kind==='empirical-archetype') {
+    return evaluateIllustrativeArchetype(shape.type, tempC, firing, nominal) * nominal;
+  }
   const ts=table.temperaturesC,rs=table.firingRates;
   if(tempC<ts[0]-1e-10 || tempC>ts.at(-1)+1e-10 || firing<rs[0]-1e-10 || firing>rs.at(-1)+1e-10)return NaN;
-  const values=estimateCrestRawRows(table,shape,anchor,tempC,nominal),i=firing<=rs[1]?0:1;
-  return Math.max(0,Math.min(1,values[i]+(values[i+1]-values[i])*(firing-rs[i])/(rs[i+1]-rs[i])));
+  const values=estimateCrestRawRows(table,shape,anchor,tempC,nominal);
+  const r=firing;
+  const l0=((r-rs[1])*(r-rs[2]))/((rs[0]-rs[1])*(rs[0]-rs[2]));
+  const l1=((r-rs[0])*(r-rs[2]))/((rs[1]-rs[0])*(rs[1]-rs[2]));
+  const l2=((r-rs[0])*(r-rs[1]))/((rs[2]-rs[0])*(rs[2]-rs[1]));
+  return Math.max(0,Math.min(1,l0*values[0]+l1*values[1]+l2*values[2]));
 }
 function evaluateIllustrativeFactor(shape,anchor,tempC,plr,nominal,table) {
-  if(!table || !Number.isFinite(nominal) || nominal<=0 || plr<=0)return NaN;
-  const rs=table.firingRates,raw=estimateCrestRawRows(table,shape,anchor,tempC,nominal);
-  const eta=raw.map(v=>Math.max(0,Math.min(1,v))),target=plr*nominal;
-  for(let i=0;i<rs.length-1;i++){
-    if(target<rs[i]*eta[i]-1e-12 || target>rs[i+1]*eta[i+1]+1e-12)continue;
-    const b=(raw[i+1]-raw[i])/(rs[i+1]-rs[i]),a=raw[i]-b*rs[i],saturated=target;
-    if(saturated>=rs[i]-1e-12 && saturated<=rs[i+1]+1e-12 && a+b*saturated>=1-1e-12)return 1/nominal;
-    const disc=a*a+4*b*target;if(disc<0)return NaN;
-    const r=Math.abs(b)<1e-14?target/a:2*target/(a+Math.sqrt(disc));
-    if(r<rs[i]-1e-9 || r>rs[i+1]+1e-9)continue;
-    return Math.max(0,Math.min(1,a+b*r))/nominal;
+  if(!Number.isFinite(nominal) || nominal<=0 || plr<=0)return NaN;
+  if(shape?.kind==='empirical-archetype') {
+    return evaluateIllustrativeArchetype(shape.type, tempC, plr, nominal);
   }
-  return NaN;
+  if(!table)return NaN;
+  const rs=table.firingRates,raw=estimateCrestRawRows(table,shape,anchor,tempC,nominal);
+  const eta=raw.map(v=>Math.max(0,Math.min(1,v)));
+  const ps=rs.map((r,i)=>r*eta[i]/nominal);
+  const p=plr;
+  const l0=((p-ps[1])*(p-ps[2]))/((ps[0]-ps[1])*(ps[0]-ps[2]));
+  const l1=((p-ps[0])*(p-ps[2]))/((ps[1]-ps[0])*(ps[1]-ps[2]));
+  const l2=((p-ps[0])*(p-ps[1]))/((ps[2]-ps[0])*(ps[2]-ps[1]));
+  const smoothEta=Math.max(0,Math.min(1,l0*eta[0]+l1*eta[1]+l2*eta[2]));
+  return smoothEta/nominal;
 }
 
 /**
@@ -4645,6 +4858,7 @@ function evaluateIllustrativeFactor(shape,anchor,tempC,plr,nominal,table) {
 function getCurveDimension(cfg) {
   if(cfg.isIllustrative)return 2;
   if(cfg.tableFamily)return 2;
+  if(cfg.curveForm === 'Bicubic')return 2;
   if(cfg.curveForm !== 'Cubic' && cfg.coeffs.slice(3).some(c=>c!==0))return 2;
   const loadTerms=cfg.curveForm==='Cubic'?cfg.coeffs.slice(1):cfg.coeffs.slice(1,3);
   return loadTerms.some(c=>c!==0)?1:0;
@@ -4655,7 +4869,8 @@ function getActiveDimension(cfg,mode=appState.engine) {
 }
 
 function getPlotLimits(cfg,mode=appState.engine) {
-  return mode==='reference'?{minX:.05,maxX:1,minY:15,maxY:85,minOut:null,maxOut:null}:cfg.limits;
+  // Illustrative comparisons keep the source domain in every calculation view.
+  return mode==='reference' && !cfg.isIllustrative?{minX:.05,maxX:1,minY:15,maxY:85,minOut:null,maxOut:null}:cfg.limits;
 }
 
 // Restored independent empirical reference. This is not a first-principles
@@ -4679,6 +4894,10 @@ function clampCurveInput(value, min, max) {
 
 function evaluatePolynomial(form, c, p, t) {
   if (form === 'Cubic') return c[0]+c[1]*p+c[2]*p*p+c[3]*p*p*p;
+  if (form === 'Bicubic') {
+    return c[0] + c[1]*p + c[2]*p*p + c[3]*t + c[4]*t*t + c[5]*p*t +
+           c[6]*p*p*p + c[7]*t*t*t + c[8]*p*p*t + c[9]*p*t*t;
+  }
   return c[0]+c[1]*p+c[2]*p*p+c[3]*t+c[4]*t*t+c[5]*p*t;
 }
 
@@ -4761,15 +4980,15 @@ function evaluateCurveFactor(cfg, tempC, plr, mode=appState.engine) {
   return factor;
 }
 
-function evaluateEfficiency(modelKey, tempC, plr) {
+function evaluateEfficiency(modelKey, tempC, plr, mode=appState.engine) {
   const cfg=BOILER_DATABASE[modelKey] || BOILER_DATABASE.os_viessmann_962;
-  return getNominalEfficiency(cfg,modelKey)*evaluateCurveFactor(cfg,tempC,plr)*100;
+  return getNominalEfficiency(cfg,modelKey)*evaluateCurveFactor(cfg,tempC,plr,mode)*100;
 }
 
-function evaluateChartValue(modelKey,tempC,plr) {
+function evaluateChartValue(modelKey,tempC,plr,mode=appState.engine) {
   const cfg=BOILER_DATABASE[modelKey] || BOILER_DATABASE.os_viessmann_962;
-  return appState.plotMetric==='factor'?evaluateCurveFactor(cfg,tempC,plr):
-    evaluateEfficiency(modelKey,tempC,plr);
+  return appState.plotMetric==='factor'?evaluateCurveFactor(cfg,tempC,plr,mode):
+    evaluateEfficiency(modelKey,tempC,plr,mode);
 }
 
 function generate3DMatrix(modelKey,temperatures,plrs=GRID_PLRS) {
@@ -4812,8 +5031,12 @@ function populateCurveOptions(categoryKey,targetModelKey) {
   if(!select)return;
   const records=categoryRecords.get(categoryKey)||[];
   select.replaceChildren(...records.map(cfg=>{
+    const dim=getCurveDimension(cfg);
+    const dimTag=dim===2
+      ? (cfg.temperatureVariable==='LeavingBoiler'?'[2D PLR + Tout] ':'[2D PLR + Tin] ')
+      : ['[Constant] ','[1D PLR] '][dim];
     const option=document.createElement('option');option.value=cfg.id;
-    option.textContent=['[Constant] ','[1D PLR] ','[2D PLR + Tin] '][getCurveDimension(cfg)]+(cfg.familyLabel||cfg.name);
+    option.textContent=dimTag+(cfg.familyLabel||cfg.name);
     return option;
   }));
   const target=BOILER_DATABASE[targetModelKey];
@@ -4856,7 +5079,7 @@ function syncNomEffUI(resetToDefault=false) {
   input.value=(getNominalEfficiency(cfg)*100).toFixed(cfg.lockNominal&&!reference?3:1);input.min='50';input.max='100';input.disabled=locked;
   for(const id of ['btn-nom-minus','btn-nom-plus','btn-reset-nom-eff'])document.getElementById(id).disabled=locked;
   document.getElementById('nom-eff-header-label').textContent=cfg.lockNominal && !reference?'Table normalization (%)':'Nominal thermal efficiency (%)';
-  document.getElementById('header-rating-cond-text').textContent=reference?'Illustrative reference: nominal efficiency at 26.7°C / PLR 1; HHV bounded at 100%':cfg.ratingCondition;
+  document.getElementById('header-rating-cond-text').textContent=reference?'Empirical reference: nominal efficiency at 26.7°C / output PLR 1; HHV bounded at 100%':cfg.ratingCondition;
   for(const [id,on] of [['metric-btn-eff',!factor],['metric-btn-factor',factor]])
     document.getElementById(id).classList.toggle('is-active',on);
   const native=document.getElementById('mode-btn-saddle'), fitted=document.getElementById('mode-btn-biquad');
@@ -4864,9 +5087,9 @@ function syncNomEffUI(resetToDefault=false) {
   const dimension=getActiveDimension(cfg),temperatureDependent=dimension===2;
   const referenceButton=document.getElementById('mode-btn-reference');
   referenceButton.disabled=!cfg.isCondensing;
-  referenceButton.style.display=cfg.isIllustrative?'none':'';
+  referenceButton.style.display=cfg.isIllustrative && !cfg.isCondensing?'none':'';
   referenceButton.classList.toggle('is-active',reference);
-  referenceButton.textContent='Physical reference';
+  referenceButton.textContent='Independent empirical reference';
   const dimensionText=['Constant efficiency: no load or temperature correction. ',
     '1D PLR only: this source has no inlet-temperature term. ',
     '2D source: output PLR and inlet temperature. '][dimension];
@@ -4877,27 +5100,30 @@ function syncNomEffUI(resetToDefault=false) {
   fitted.classList.toggle('is-active',appState.engine==='biquad');
   const modeNote=document.getElementById('calculation-mode-note');
   if(modeNote)modeNote.textContent=reference?
-    'Independent empirical model; not derived from the source or E+ fit. IDF still exports the source-based curve.':
+    (cfg.isIllustrative?'Independent empirical temperature/load assumptions; differences compare models, not equipment accuracy. Same plot range and nominal efficiency; IDF exports the Illustrative E+ fit. CSV exports the selected calculation.':
+    'Independent empirical model; not derived from the source or E+ fit. IDF still exports the source-based curve. CSV exports the selected calculation.'):
     appState.engine==='biquad'?
     'Export approximation of the source response. Fit error measures agreement with the source, not physical accuracy.':
     cfg.isNECBFuelCurve?
     'Direct NECB fuel-ratio calculation: efficiency = nominal efficiency × PLR / F. No refitting in this view.':
-    cfg.isIllustrative?'Table-based engineering estimate. E+ derived fit approximates this model for export.':
+    cfg.isIllustrative?'Table-based engineering estimate; load response comes from three Crest firing-rate nodes, with no added cycling-loss model. E+ derived fit approximates this estimate for export.':
     cfg.derivedFit?'Published source calculation. E+ derived fit is a separate approximation for export.':
     'Published polynomial used directly for calculation and IDF export; no additional fit.';
-  const active=reference?'Independent empirical physical reference':appState.engine==='source'?(cfg.isIllustrative?'Crest-seeded illustration':'Source calculation'):getExportCurve(cfg).form+' derived fit';
+  const active=reference?'Independent empirical reference':appState.engine==='source'?(cfg.isIllustrative?'Crest-seeded illustration':'Source calculation'):getExportCurve(cfg).form+' derived fit';
   document.getElementById('title-3d-card').textContent=(temperatureDependent?'2D response surface':'1D response repeated along temperature')+' · '+active;
-  document.getElementById('card-desc-3d').textContent=reference?'Independent empirical dew-point and part-load model; not reconstructed from NECB or its E+ fit.':dimensionText+cfg.description;
+  document.getElementById('card-desc-3d').textContent=reference?'Independent empirical temperature and part-load model; not reconstructed from the source or its E+ fit. Model differences do not establish equipment accuracy.':dimensionText+cfg.description;
   document.getElementById('title-2d-plr').textContent='Efficiency '+(factor?'factor ':'')+'vs output part-load ratio';
   document.getElementById('title-2d-temp').textContent='Efficiency '+(factor?'factor ':'')+'vs inlet temperature';
-  document.getElementById('desc-2d-plr').textContent=temperatureDependent?'Temperature slices of the selected calculation.':'One source curve: temperature slices coincide and are not repeated.';
+  document.getElementById('desc-2d-plr').textContent=cfg.isIllustrative && cfg.isCondensing?
+    'Selected-temperature load comparison. Solid: selected calculation; dotted/dashed: other models. Same nominal efficiency; differences reflect model assumptions.':
+    temperatureDependent?'Temperature slices of the selected calculation.':'One source curve: temperature slices coincide and are not repeated.';
   document.getElementById('desc-2d-temp').textContent=!reference && (cfg.curveForm==='Cubic' ||
     (cfg.isNECBFuelCurve && cfg.temperatureBasis==='none'))?'1D curve: inlet temperature has no effect.':
-    reference?'Independent empirical reference domain; not a source or fit validity range.':
+    reference?(cfg.isIllustrative?'Same inlet-temperature range as the Illustrative model; independent empirical response.':'Independent empirical reference domain; not a source or fit validity range.'):
     'Inlet temperature in °C; published or software-selected fit limits shown below.';
   const fit=cfg.derivedFit;
   const status=document.getElementById('curve-status-note');
-  if(status)status.textContent=cfg.isIllustrative?'ILLUSTRATIVE · '+(cfg.illustrativeModel.mode==='dry'?'Dry-branch assumption; no noncondensing performance map verified.':'Crest-seeded estimate; both transfer indices are assumed.')+' HHV ≤100%.':reference?'Independent illustrative reference; IDF uses the source model.':
+  if(status)status.textContent=reference?'Independent empirical reference; model comparison only. IDF uses the source model.':cfg.isIllustrative?'ILLUSTRATIVE · '+(cfg.illustrativeModel.mode==='dry'?'Dry-branch assumption; no noncondensing performance map verified.':'Crest-seeded estimate; both transfer indices are assumed.')+' HHV ≤100%.':
     cfg.category==='baseline'?'Generic baseline / scenario · no manufacturer performance map. '+dimensionText:
     dimensionText+(fit?(appState.engine==='biquad'?'E+ derived approximation shown; IDF exports this fit. Details in Help.':'Source table / formula shown; E+ export is an approximation. Details in Help.'):
     'Published coefficients used directly.');
@@ -4939,8 +5165,8 @@ function updateKPIs(eff) {
   set('kpi-plr-badge','Output PLR');
   set('kpi-dew-badge',appState.tempC<54?'Below ~54°C':'Above ~54°C');
   set('kpi-state-badge',cfg.isCondensing?'Condensing model':'Reference model');
-  set('kpi-shape-badge',cfg.isIllustrative?'Illustrative scenario':appState.engine==='reference'?'Empirical reference':cfg.curveForm==='Cubic'?'1D polynomial':cfg.curveForm);
-  set('kpi-peak-val',appState.engine==='reference'?'Physical reference':cfg.derivedFit && appState.engine==='source'?'Source calculation':getExportCurve(cfg).form);
+  set('kpi-shape-badge',appState.engine==='reference'?'Empirical reference':cfg.isIllustrative?'Illustrative scenario':cfg.curveForm==='Cubic'?'1D polynomial':cfg.curveForm);
+  set('kpi-peak-val',appState.engine==='reference'?'Empirical reference':cfg.derivedFit && appState.engine==='source'?'Source calculation':getExportCurve(cfg).form);
   set('kpi-peak-sub',cfg.isIllustrative?'Estimated scenario; not a tested product':cfg.derivedFit?'Source and export fit are distinct':'Published coefficients');
   set('kpi-audit-badge',Number.isFinite(eff)&&eff>0&&eff<=100?'Numeric range':'Check domain');
   set('kpi-audit-val',Number.isFinite(eff)?(eff<=100?'≤ 100%':'> 100%'):'Invalid fuel ratio');
@@ -4972,7 +5198,11 @@ function syncSliderFromState() {
   slider.value=isIP?cToF(appState.tempC):appState.tempC;
   document.getElementById('slider-min-label').textContent=formatTemperature(l.minY);
   document.getElementById('slider-max-label').textContent=formatTemperature(l.maxY);
-  if(pSlider){pSlider.min=Math.max(.05,l.minX);pSlider.max=Math.min(1,l.maxX);pSlider.step='any';pSlider.value=appState.plr;}
+  if(pSlider){
+    pSlider.min=Math.max(.05,l.minX);pSlider.max=Math.min(1,l.maxX);pSlider.step='any';pSlider.value=appState.plr;
+    document.getElementById('slider-plr-min-label').textContent=Number(pSlider.min).toFixed(2);
+    document.getElementById('slider-plr-max-label').textContent=Number(pSlider.max).toFixed(2);
+  }
 }
 
   /* =========================================================================
@@ -5153,6 +5383,10 @@ function attachPlot3DCameraListener() {
       }
       const cfg = BOILER_DATABASE[appState.modelKey] || BOILER_DATABASE.os_viessmann_962;
       const limits=getPlotLimits(cfg);
+      const compareIllustrative=cfg.isIllustrative && cfg.isCondensing;
+      // Use the union of all three responses for stable automatic axes on mode switches.
+      const scaleModes=compareIllustrative?['source','biquad','reference']:[appState.engine];
+      const modeLabel=mode=>mode==='reference'?'Independent empirical reference':mode==='biquad'?'E+ derived fit':'Illustrative model';
       const temperatureDependent=getActiveDimension(cfg)===2;
       const grid=(min,max,count)=>Array.from({length:count},(_,i)=>min+(max-min)*i/(count-1));
       const GRID_TEMPS_C=grid(limits.minY,limits.maxY,41);
@@ -5218,9 +5452,11 @@ function attachPlot3DCameraListener() {
         const p = GRID_PLRS[j];
         for (let i = 0; i < active3DTempsC.length; i++) {
           const t = active3DTempsC[i];
-          const val = evaluateChartValue(appState.modelKey, t, p);
-          if (val > maxVal3D) maxVal3D = val;
-          if (val < minVal3D) minVal3D = val;
+          for(const mode of scaleModes) {
+            const val = evaluateChartValue(appState.modelKey, t, p, mode);
+            if (val > maxVal3D) maxVal3D = val;
+            if (val < minVal3D) minVal3D = val;
+          }
         }
       }
       if (currentChartVal > maxVal3D) maxVal3D = currentChartVal;
@@ -5238,15 +5474,19 @@ function attachPlot3DCameraListener() {
 
       refTemps.forEach(tRefC => {
         GRID_PLRS.forEach(p => {
-          const val = evaluateChartValue(appState.modelKey, tRefC, p);
-          if (val > maxValPlr) maxValPlr = val;
-          if (val < minValPlr) minValPlr = val;
+          for(const mode of scaleModes) {
+            const val = evaluateChartValue(appState.modelKey, tRefC, p, mode);
+            if (val > maxValPlr) maxValPlr = val;
+            if (val < minValPlr) minValPlr = val;
+          }
         });
       });
       GRID_PLRS.forEach(p => {
-        const val = evaluateChartValue(appState.modelKey, appState.tempC, p);
-        if (val > maxValPlr) maxValPlr = val;
-        if (val < minValPlr) minValPlr = val;
+        for(const mode of scaleModes) {
+          const val = evaluateChartValue(appState.modelKey, appState.tempC, p, mode);
+          if (val > maxValPlr) maxValPlr = val;
+          if (val < minValPlr) minValPlr = val;
+        }
       });
       if (currentChartVal > maxValPlr) maxValPlr = currentChartVal;
       if (currentChartVal < minValPlr) minValPlr = currentChartVal;
@@ -5258,15 +5498,19 @@ function attachPlot3DCameraListener() {
       const activeGridTempsC = GRID_TEMPS_C;
       REF_PLRS_FAMILY.forEach(pRef => {
         activeGridTempsC.forEach(t => {
-          const val = evaluateChartValue(appState.modelKey, t, pRef);
-          if (val > maxValTemp) maxValTemp = val;
-          if (val < minValTemp) minValTemp = val;
+          for(const mode of scaleModes) {
+            const val = evaluateChartValue(appState.modelKey, t, pRef, mode);
+            if (val > maxValTemp) maxValTemp = val;
+            if (val < minValTemp) minValTemp = val;
+          }
         });
       });
       activeGridTempsC.forEach(t => {
-        const val = evaluateChartValue(appState.modelKey, t, appState.plr);
-        if (val > maxValTemp) maxValTemp = val;
-        if (val < minValTemp) minValTemp = val;
+        for(const mode of scaleModes) {
+          const val = evaluateChartValue(appState.modelKey, t, appState.plr, mode);
+          if (val > maxValTemp) maxValTemp = val;
+          if (val < minValTemp) minValTemp = val;
+        }
       });
       if (currentChartVal > maxValTemp) maxValTemp = currentChartVal;
       if (currentChartVal < minValTemp) minValTemp = currentChartVal;
@@ -5305,6 +5549,8 @@ function attachPlot3DCameraListener() {
           y: GRID_PLRS,
           z: Z,
           colorscale: 'Viridis',
+          cmin: compareIllustrative?zRange3D[0]:undefined,
+          cmax: compareIllustrative?zRange3D[1]:undefined,
           showscale: true,
           colorbar: {
             len: 0.8,
@@ -5544,11 +5790,26 @@ function attachPlot3DCameraListener() {
           x: GRID_PLRS,
           y: activeYVals,
           line: { color: primaryColor, width: isPlrFocus ? 4.5 : 3.5, shape: 'linear' },
-          name: temperatureDependent ? `Active T = ${formatTemperature(appState.tempC)}` : 'Source PLR response (no temperature term)',
+          name: compareIllustrative?modeLabel(appState.engine):
+            temperatureDependent ? `Active T = ${formatTemperature(appState.tempC)}` : 'Source PLR response (no temperature term)',
+          meta: compareIllustrative?{comparisonMode:appState.engine}:undefined,
           hovertemplate: isFactorMode
             ? `Active Temp ${formatTemperature(appState.tempC)}<br>PLR: %{x:.2f}<br>Adjust Factor (f): %{y:.4f}<extra></extra>`
             : `Active Temp ${formatTemperature(appState.tempC)}<br>PLR: %{x:.2f}<br>Efficiency: %{y:.2f}%<extra></extra>`
         });
+
+        // Compare only the selected-temperature slice, within the shared source domain.
+        if(compareIllustrative)for(const mode of ['source','reference']) {
+          if(mode===appState.engine)continue;
+          const label=modeLabel(mode);
+          traces2DPlr.push({
+            type:'scatter',mode:'lines',x:GRID_PLRS,
+            y:GRID_PLRS.map(p=>evaluateChartValue(cfg.id,appState.tempC,p,mode)),
+            line:{color:mode==='reference'?emeraldColor:textColor,width:isPlrFocus?3:2.5,dash:mode==='reference'?'dash':'dot'},
+            name:label,meta:{comparisonMode:mode},
+            hovertemplate:`${label}<br>Inlet: ${formatTemperature(appState.tempC)}<br>Output PLR: %{x:.3f}<br>${isFactorMode?'Factor: %{y:.4f}':'Efficiency: %{y:.3f}% HHV'}<extra></extra>`
+          });
+        }
 
         // Crosshair Lines
         traces2DPlr.push({
@@ -5565,7 +5826,7 @@ function attachPlot3DCameraListener() {
         traces2DPlr.push({
           type: 'scatter',
           mode: 'lines',
-          x: [0.03, appState.plr],
+          x: [Math.max(.05,limits.minX), appState.plr],
           y: [currentChartVal, currentChartVal],
           line: { color: redAlertColor, width: isPlrFocus ? 2.0 : 1.5, dash: 'dash' },
           name: isFactorMode ? `Adjust Factor = ${currentChartVal.toFixed(4)}` : `Efficiency = ${currentEff.toFixed(1)}%`,
@@ -5588,8 +5849,8 @@ function attachPlot3DCameraListener() {
             : `Operating Point<br>PLR: %{x:.2f}<br>Efficiency: %{y:.2f}%<extra></extra>`
         });
 
-        const bottomMarginPlr = Math.round((isPlrFocus ? 64 : 58) * (appState.fontScale || 1.0));
-        const legendYOffsetPlr = -0.16;
+        const bottomMarginPlr = Math.round((compareIllustrative?110:isPlrFocus?64:58) * (appState.fontScale || 1.0));
+        const legendYOffsetPlr = compareIllustrative?-.23:-.16;
 
         const baselineShapePlr = isFactorMode
           ? {
@@ -5624,7 +5885,7 @@ function attachPlot3DCameraListener() {
           },
           xaxis: {
             title: {
-              text: 'Part-Load Ratio (PLR, 0.05 ~ 1.0)',
+              text: 'Output Part-Load Ratio (PLR)',
               font: { size: fsScaled(11), color: textColor },
               standoff: Math.round(10 * (appState.fontScale || 1.0))
             },
@@ -5940,7 +6201,9 @@ function generateIDFString(modelKey) {
   const nominal=getExportNominalEfficiency(cfg);
   if(Math.abs(nominal-cfg.nomEff)>1e-10)header+='! USER-SCALED nominal efficiency; this is a user scenario, not an upstream rating.\n';
   const coefficientLabels=curve.form==='Cubic'?['Constant','x','x**2','x**3']:
-    ['Constant','x','x**2','y','y**2','x*y'];
+    (curve.form==='Bicubic'?
+      ['Constant','x','x**2','y','y**2','x*y','x**3','y**3','x**2*y','x*y**2']:
+      ['Constant','x','x**2','y','y**2','x*y']);
   const fields=[ [curveName,'Name'],...curve.coeffs.map((v,i)=>[formatIDFCoeff(v),'Coefficient'+(i+1)+' '+coefficientLabels[i]]),
     [l.minX,'Minimum Value of x'],[l.maxX,'Maximum Value of x']];
   if(curve.form!=='Cubic')fields.push([l.minY,'Minimum Value of y'],[l.maxY,'Maximum Value of y']);
@@ -5967,15 +6230,18 @@ function showToast(message) {
   setTimeout(()=>el.classList.remove('show'),2400);
 }
 function coefficientRows(coeffs,form,tempBasis='°C') {
-  const terms=form==='Cubic'?['1','PLR','PLR²','PLR³']:['1','PLR','PLR²',
-    tempBasis==='none'?'unused':'T ('+tempBasis+')',tempBasis==='none'?'unused':'T²',tempBasis==='none'?'unused':'PLR × T'];
-  return coeffs.map((v,i)=>'<tr><td>C'+(i+1)+'</td><td>'+terms[i]+
+  const terms=form==='Cubic'?['1','PLR','PLR²','PLR³']:
+    (form==='Bicubic'?
+      ['1','PLR','PLR²',tempBasis==='none'?'unused':'T ('+tempBasis+')',tempBasis==='none'?'unused':'T²',tempBasis==='none'?'unused':'PLR × T','PLR³','T³','PLR² × T','PLR × T²']:
+      ['1','PLR','PLR²',
+       tempBasis==='none'?'unused':'T ('+tempBasis+')',tempBasis==='none'?'unused':'T²',tempBasis==='none'?'unused':'PLR × T']);
+  return coeffs.map((v,i)=>'<tr><td>C'+(i+1)+'</td><td>'+(terms[i]||('C'+(i+1)))+
     '</td><td>'+formatIDFCoeff(v)+'</td><td>'+escapeHtml(form)+'</td></tr>').join('');
 }
 function renderActiveModelHelp(cfg,curve) {
   const plotted=getPlotLimits(cfg),exported=curve.limits;
   const domain=l=>'Output PLR '+l.minX+'–'+l.maxX+'; inlet '+l.minY.toFixed(3)+'–'+l.maxY.toFixed(3)+'°C';
-  const mode=appState.engine==='reference'?'Independent empirical Physical reference':
+  const mode=appState.engine==='reference'?'Independent empirical reference':
     appState.engine==='biquad'?'Export polynomial approximation':cfg.isIllustrative?'Crest-seeded illustrative estimate':'Source calculation';
   const rows=[
     ['Current calculation',mode],['Model status',cfg.type],
@@ -5991,6 +6257,10 @@ function renderActiveModelHelp(cfg,curve) {
   if(cfg.isIllustrative){
     rows.push(['Estimation scope',cfg.evidenceStatus]);
     if(cfg.comparisonFamily)rows.push(
+      ['Load response','Three Crest firing-rate nodes are transformed and interpolated, then converted to output PLR; no additional cycling-loss model.'],
+      ['Independent empirical reference','Separate temperature/load assumptions. PLR slice compares both models at the selected temperature and same nominal efficiency; differences do not measure equipment accuracy.'],
+      ['Comparison normalization','Illustrative: '+cfg.illustrativeAnchor.tempC.toFixed(6)+'°C at full fuel firing r=1; empirical reference: 26.7°C at output PLR=1. These are model anchors, not common certified ratings.'],
+      ['Comparison domain','All three views use the Illustrative plot range. The empirical cycling term below PLR 0.12 is outside this comparison. IDF exports the Illustrative E+ fit; CSV exports the selected calculation.'],
       ['Relative sensible / recovery indices',cfg.illustrativeModel.sensibleTransferIndex.toFixed(6)+' / '+cfg.illustrativeModel.condensingTransferIndex.toFixed(6)],
       ['Model assumptions','Dry recovery ceiling 90% HHV; sensible-index exponent 3. Indices do not identify actual UA or area.'],
       ['High-temperature model output',(cfg.highTemperatureReference.efficiency*100).toFixed(2)+'% HHV at '+cfg.highTemperatureReference.tempC.toFixed(3)+'°C / full fuel firing'],
@@ -6080,7 +6350,435 @@ function copyCurveCoefficients() {
 }
 
   /* =========================================================================
-   * 8. Application Bootstrap & Event Handlers
+   * 8. Four-Tier Curve Comparison Modal
+   * ========================================================================= */
+/**
+ * Four-Tier Illustrative Family Comparison Modal View
+ * Single-file in-app comparison dashboard (Surfaces, Slices, CSV Export)
+ */
+
+
+
+
+
+
+let reportData = null;
+let engine = 'values'; // 'values' (Estimated model) or 'fitted' (EnergyPlus approximation)
+let csvPayload = '';
+
+function computeComparisonData() {
+  if (reportData) return reportData;
+
+  const models = Object.values(BOILER_DATABASE)
+    .filter(c => c.comparisonFamily === 'condensing_estimates')
+    .sort((a, b) => a.nomEff - b.nomEff);
+
+  if (!models.length) return null;
+
+  const limits = models[0].limits;
+  const grid = (min, max, n) => Array.from({ length: n }, (_, i) => min + (max - min) * i / (n - 1));
+  const temperatures = grid(limits.minY, limits.maxY, 101);
+  const plrs = grid(limits.minX, limits.maxX, 61);
+
+  let csv = 'Model,Status,InletTemperature_C,OutputPLR,Efficiency_HHV_Pct\n';
+  const colors = ['#c87924', '#8163bf', '#207cba', '#12856c'];
+
+  const curves = models.map((cfg, k) => {
+    const values = plrs.map(p => temperatures.map(t => {
+      const eta = evaluateIllustrativeFactor(cfg.illustrativeModel, cfg.illustrativeAnchor, t, p, cfg.nomEff, CREST_TABLE) * cfg.nomEff * 100;
+      csv += [cfg.id, 'ILLUSTRATIVE engineering estimate', t.toFixed(4), p.toFixed(4), eta.toFixed(6)].join(',') + '\n';
+      return Number(eta.toFixed(6));
+    }));
+
+    const fitted = plrs.map(p => temperatures.map(t => Number((Math.min(1, Math.max(0,
+      evaluatePolynomial('Biquadratic', cfg.coeffs, p, t) * cfg.nomEff)) * 100).toFixed(6))));
+
+    return {
+      name: Math.round(cfg.nomEff * 100) + '%',
+      color: colors[k],
+      values,
+      fitted,
+      high: cfg.highTemperatureReference ? cfg.highTemperatureReference.efficiency * 100 : cfg.nomEff * 100,
+      sensibleIndex: cfg.illustrativeModel ? cfg.illustrativeModel.sensibleTransferIndex : 1,
+      condensingIndex: cfg.illustrativeModel ? cfg.illustrativeModel.condensingTransferIndex : 1,
+      maxFitError: cfg.derivedFit && cfg.derivedFit.validation ? cfg.derivedFit.validation.maxErrorPercentagePoints : 0
+    };
+  });
+
+  csvPayload = csv;
+  reportData = { temperatures, plrs, curves };
+  return reportData;
+}
+
+function getThemePalette() {
+  const themeStyle = getComputedStyle(document.documentElement);
+  const themeColor = name => themeStyle.getPropertyValue(name).trim();
+  const palette = {
+    surface: themeColor('--bg-surface') || '#0f172a',
+    ink: themeColor('--text-primary') || '#f8fafc',
+    muted: themeColor('--text-secondary') || '#94a3b8',
+    grid: themeColor('--border-color') || 'rgba(255, 255, 255, 0.15)',
+    accent: themeColor('--accent-blue') || '#38bdf8',
+    tracerPlr: themeColor('--text-primary') || '#f8fafc',
+    tracerTemp: themeColor('--accent-rose') || '#f43f5e'
+  };
+  const axisTheme = {
+    gridcolor: palette.grid,
+    zerolinecolor: palette.grid,
+    linecolor: palette.grid,
+    color: palette.ink,
+    tickfont: { color: palette.muted }
+  };
+  const baseLayout = {
+    paper_bgcolor: palette.surface,
+    plot_bgcolor: palette.surface,
+    font: { family: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: palette.ink },
+    margin: { l: 62, r: 24, b: 58, t: 36 },
+    legend: { orientation: 'h', x: 0, xanchor: 'left', y: 1.05, yanchor: 'bottom' }
+  };
+  return { palette, axisTheme, baseLayout };
+}
+
+function buildTracerTraces() {
+  const data = computeComparisonData();
+  if (!data) return [];
+  const elPlr = document.getElementById('comp-plr');
+  const elTemp = document.getElementById('comp-temp');
+  const elTracers = document.getElementById('comp-show-tracers');
+
+  const pi = elPlr ? Number(elPlr.value) : 30;
+  const ti = elTemp ? Number(elTemp.value) : 48;
+  const visible = elTracers ? elTracers.checked : true;
+  const p = data.plrs[pi];
+  const t = data.temperatures[ti];
+  const { palette } = getThemePalette();
+
+  return data.curves.flatMap(c => {
+    const shared = {
+      type: 'scatter3d',
+      legendgroup: c.name,
+      showlegend: false,
+      visible,
+      hovertemplate: c.name + ' scenario<br>Inlet %{x:.2f}°C<br>Output PLR %{y:.3f}<br>%{z:.3f}% HHV<extra></extra>'
+    };
+    return [
+      {
+        ...shared,
+        name: c.name + ' · fixed PLR',
+        mode: 'lines',
+        x: data.temperatures,
+        y: data.temperatures.map(() => p),
+        z: c[engine][pi],
+        line: { color: palette.tracerPlr, width: 8, dash: 'solid' }
+      },
+      {
+        ...shared,
+        name: c.name + ' · fixed inlet temp',
+        mode: 'lines',
+        x: data.plrs.map(() => t),
+        y: data.plrs,
+        z: c[engine].map(row => row[ti]),
+        line: { color: palette.tracerTemp, width: 7, dash: 'dash' }
+      },
+      {
+        ...shared,
+        name: c.name + ' · operating point',
+        mode: 'markers',
+        x: [t],
+        y: [p],
+        z: [c[engine][pi][ti]],
+        marker: { color: palette.tracerPlr, size: 6, line: { color: palette.tracerTemp, width: 2 } }
+      }
+    ];
+  });
+}
+
+function renderTracers() {
+  if (typeof Plotly === 'undefined') return;
+  const target = document.getElementById('comp-family-3d');
+  if (!target || !target.data) return;
+  const data = computeComparisonData();
+  if (!data) return;
+  const traces = buildTracerTraces();
+  Plotly.restyle('comp-family-3d', {
+    x: traces.map(trace => trace.x),
+    y: traces.map(trace => trace.y),
+    z: traces.map(trace => trace.z),
+    visible: traces.map(trace => trace.visible)
+  }, traces.map((_, i) => data.curves.length + i));
+}
+
+function renderSurfaces() {
+  if (typeof Plotly === 'undefined') return;
+  const data = computeComparisonData();
+  if (!data) return;
+  const { palette, axisTheme, baseLayout } = getThemePalette();
+
+  const traces = data.curves.map(c => ({
+    type: 'surface',
+    x: data.temperatures,
+    y: data.plrs,
+    z: c[engine],
+    name: c.name,
+    legendgroup: c.name,
+    showlegend: true,
+    showscale: false,
+    opacity: 0.45,
+    colorscale: [[0, c.color], [1, c.color]],
+    hovertemplate: c.name + ' scenario<br>Inlet %{x:.2f}°C<br>Output PLR %{y:.3f}<br>%{z:.3f}% HHV<extra></extra>'
+  }));
+
+  const config = { responsive: true, displaylogo: false };
+  Plotly.react('comp-family-3d', [...traces, ...buildTracerTraces()], {
+    ...baseLayout,
+    margin: { l: 0, r: 0, b: 10, t: 36 },
+    uirevision: 'family-camera',
+    scene: {
+      bgcolor: palette.surface,
+      xaxis: { ...axisTheme, title: 'Inlet water temp (°C)', showbackground: true, backgroundcolor: palette.surface },
+      yaxis: { ...axisTheme, title: 'Output PLR', showbackground: true, backgroundcolor: palette.surface },
+      zaxis: { ...axisTheme, title: 'Efficiency (% HHV)', range: [82, 100], showbackground: true, backgroundcolor: palette.surface },
+      aspectratio: { x: 1.4, y: 1, z: 0.75 },
+      camera: { eye: { x: 1.45, y: -1.65, z: 0.95 } }
+    }
+  }, config);
+}
+
+function selectionGuide(value, label, range, color, palette) {
+  const elTracers = document.getElementById('comp-show-tracers');
+  if (elTracers && !elTracers.checked) return { shapes: [], annotations: [] };
+  const fraction = (value - range[0]) / (range[range.length - 1] - range[0]);
+  return {
+    shapes: [{
+      type: 'line', xref: 'x', yref: 'paper', x0: value, x1: value, y0: 0, y1: 1,
+      line: { color, width: 2, dash: 'dash' }, layer: 'above'
+    }],
+    annotations: [{
+      xref: 'x', yref: 'paper', x: value, y: 0.98, text: label, showarrow: false,
+      xanchor: fraction < 0.15 ? 'left' : fraction > 0.85 ? 'right' : 'center',
+      yanchor: 'top',
+      xshift: fraction < 0.15 ? 6 : fraction > 0.85 ? -6 : 0,
+      bgcolor: palette.surface, bordercolor: color, borderpad: 4,
+      font: { color: palette.ink, size: 11 }
+    }]
+  };
+}
+
+function selectionDots(value, efficiencies, label, palette) {
+  const data = computeComparisonData();
+  const elTracers = document.getElementById('comp-show-tracers');
+  const visible = elTracers ? elTracers.checked : true;
+  return {
+    type: 'scatter',
+    mode: 'markers',
+    name: 'Selected points',
+    showlegend: false,
+    visible,
+    x: data.curves.map(() => value),
+    y: efficiencies,
+    text: data.curves.map(c => c.name),
+    marker: { color: data.curves.map(c => c.color), size: 8, line: { color: palette.ink, width: 2 } },
+    hovertemplate: '%{text} scenario<br>' + label + '<br>%{y:.3f}% HHV<extra></extra>'
+  };
+}
+
+function renderSlices(update3D = true) {
+  if (typeof Plotly === 'undefined') return;
+  const data = computeComparisonData();
+  if (!data) return;
+  if (update3D) renderTracers();
+
+  const elPlr = document.getElementById('comp-plr');
+  const elTemp = document.getElementById('comp-temp');
+  const pi = elPlr ? Number(elPlr.value) : 30;
+  const ti = elTemp ? Number(elTemp.value) : 48;
+  const p = data.plrs[pi];
+  const t = data.temperatures[ti];
+
+  const elPlrVal = document.getElementById('comp-plr-value');
+  const elTempVal = document.getElementById('comp-temp-value');
+  if (elPlrVal) elPlrVal.textContent = p.toFixed(2);
+  if (elTempVal) elTempVal.textContent = t.toFixed(1) + '°C';
+
+  const titleTemp = document.getElementById('comp-family-temp-title');
+  const titlePlr = document.getElementById('comp-family-plr-title');
+  if (titleTemp) titleTemp.textContent = 'RWT response · output PLR ' + p.toFixed(2);
+  if (titlePlr) titlePlr.textContent = 'Partial-load response · RWT ' + t.toFixed(1) + '°C';
+
+  const { palette, axisTheme, baseLayout } = getThemePalette();
+  const config = { responsive: true, displaylogo: false };
+
+  const line = (c, x, y) => ({
+    type: 'scatter', mode: 'lines', x, y, name: c.name, line: { color: c.color, width: 2.5 },
+    hovertemplate: c.name + '<br>%{x:.3f}<br>%{y:.3f}% HHV<extra></extra>'
+  });
+
+  const efficiencies = data.curves.map(c => c[engine][pi][ti]);
+  const tempLabel = 'Selected RWT = ' + t.toFixed(1) + '°C';
+  const plrLabel = 'Selected PLR = ' + p.toFixed(2);
+
+  Plotly.react('comp-family-plr', [
+    ...data.curves.map(c => line(c, data.plrs, c[engine].map(row => row[ti]))),
+    selectionDots(p, efficiencies, plrLabel, palette)
+  ], {
+    ...baseLayout,
+    ...selectionGuide(p, plrLabel, data.plrs, palette.tracerPlr, palette),
+    xaxis: { ...axisTheme, title: 'Useful-output PLR' },
+    yaxis: { ...axisTheme, title: 'Efficiency (% HHV)' }
+  }, config);
+
+  Plotly.react('comp-family-temp', [
+    ...data.curves.map(c => line(c, data.temperatures, c[engine][pi])),
+    selectionDots(t, efficiencies, tempLabel, palette)
+  ], {
+    ...baseLayout,
+    ...selectionGuide(t, tempLabel, data.temperatures, palette.tracerTemp, palette),
+    xaxis: { ...axisTheme, title: 'Return water temp (°C)' },
+    yaxis: { ...axisTheme, title: 'Efficiency (% HHV)' }
+  }, config);
+
+  const elStatus = document.getElementById('comp-status-text');
+  if (elStatus) {
+    elStatus.textContent = engine === 'values'
+      ? 'Estimated model: both high- and low-temperature performance improve across tiers.'
+      : 'Polynomial export: tier ordering has an analytic check over the common rectangle; fitting errors refer to estimated model.';
+  }
+}
+
+function setEngineMode(next) {
+  engine = next;
+  const btnSrc = document.getElementById('comp-source-mode');
+  const btnFit = document.getElementById('comp-fit-mode');
+  if (btnSrc) btnSrc.classList.toggle('is-active', next === 'values');
+  if (btnFit) btnFit.classList.toggle('is-active', next === 'fitted');
+  renderSurfaces();
+  renderSlices(false);
+}
+
+function populateTable() {
+  const data = computeComparisonData();
+  if (!data) return;
+  const tbody = document.getElementById('comp-table-body');
+  if (!tbody || tbody.children.length > 0) return;
+
+  tbody.innerHTML = data.curves.map(c =>
+    '<tr><td><strong>' + c.name + '</strong></td>' +
+    '<td>' + c.high.toFixed(2) + '%</td>' +
+    '<td>' + c.sensibleIndex.toFixed(3) + '</td>' +
+    '<td>' + c.condensingIndex.toFixed(3) + '</td>' +
+    '<td>' + c.maxFitError.toFixed(3) + '</td></tr>'
+  ).join('');
+}
+
+function openComparisonModal() {
+  const modal = document.getElementById('comparison-modal');
+  if (!modal) return;
+  computeComparisonData();
+  populateTable();
+  modal.classList.add('is-open');
+
+  setTimeout(() => {
+    renderSurfaces();
+    renderSlices(false);
+    if (typeof Plotly !== 'undefined' && Plotly.Plots) {
+      ['comp-family-3d', 'comp-family-plr', 'comp-family-temp'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) Plotly.Plots.resize(el);
+      });
+    }
+  }, 60);
+}
+
+function toggleMaximizeComparisonModal() {
+  const modal = document.getElementById('comparison-modal');
+  if (!modal) return;
+  const isMax = modal.classList.toggle('is-maximized');
+  const icon = document.getElementById('comp-max-icon');
+  if (icon) {
+    if (isMax) {
+      // Restore icon (two overlapping squares / arrows inward)
+      icon.innerHTML = '<rect width="14" height="14" x="7" y="7" rx="2"/><path d="M17 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2"/><path d="M14 10l7-7"/><path d="M21 7V3h-4"/>';
+    } else {
+      // Maximize icon
+      icon.innerHTML = '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>';
+    }
+  }
+  const triggerResize = () => {
+    if (typeof Plotly !== 'undefined' && Plotly.Plots) {
+      ['comp-family-3d', 'comp-family-plr', 'comp-family-temp'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) Plotly.Plots.resize(el);
+      });
+    }
+  };
+  setTimeout(triggerResize, 60);
+  setTimeout(triggerResize, 240);
+}
+
+function closeComparisonModal() {
+  const modal = document.getElementById('comparison-modal');
+  if (modal) {
+    modal.classList.remove('is-open');
+    modal.classList.remove('is-maximized');
+    const icon = document.getElementById('comp-max-icon');
+    if (icon) {
+      icon.innerHTML = '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>';
+    }
+  }
+}
+
+function initComparisonModal() {
+  const link = document.getElementById('family-comparison-link');
+  if (link) {
+    link.addEventListener('click', e => {
+      if (e && typeof e.preventDefault === 'function') e.preventDefault();
+      openComparisonModal();
+    });
+  }
+
+  const btnMax = document.getElementById('btn-max-comparison-modal');
+  if (btnMax) btnMax.addEventListener('click', toggleMaximizeComparisonModal);
+
+  const btnClose = document.getElementById('btn-close-comparison-modal');
+  if (btnClose) btnClose.addEventListener('click', closeComparisonModal);
+
+  const btnFooterClose = document.getElementById('btn-footer-close-comp');
+  if (btnFooterClose) btnFooterClose.addEventListener('click', closeComparisonModal);
+
+  const modal = document.getElementById('comparison-modal');
+  if (modal) {
+    modal.addEventListener('click', e => {
+      if (e.target === modal) closeComparisonModal();
+    });
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeComparisonModal();
+  });
+
+  const btnSrc = document.getElementById('comp-source-mode');
+  const btnFit = document.getElementById('comp-fit-mode');
+  if (btnSrc) btnSrc.addEventListener('click', () => setEngineMode('values'));
+  if (btnFit) btnFit.addEventListener('click', () => setEngineMode('fitted'));
+
+  const elPlr = document.getElementById('comp-plr');
+  const elTemp = document.getElementById('comp-temp');
+  const elTracers = document.getElementById('comp-show-tracers');
+  if (elPlr) elPlr.addEventListener('input', () => renderSlices());
+  if (elTemp) elTemp.addEventListener('input', () => renderSlices());
+  if (elTracers) elTracers.addEventListener('change', () => renderSlices());
+
+  const btnDownload = document.getElementById('comp-download-csv');
+  if (btnDownload) {
+    btnDownload.addEventListener('click', () => {
+      computeComparisonData();
+      downloadFile(csvPayload, 'Illustrative_Family_Curves.csv', 'text/csv');
+    });
+  }
+}
+
+  /* =========================================================================
+   * 9. Application Bootstrap & Event Handlers
    * ========================================================================= */
 /**
  * Boiler Curve Inspector - Main Application Bootstrap & Event Handlers
@@ -6093,12 +6791,9 @@ function copyCurveCoefficients() {
 
 
 
+
 function initCommunityApp() {
-      const syncComparisonTheme = () => {
-        const theme = document.body.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
-        document.getElementById('family-comparison-link').setAttribute('href', 'Illustrative_Family_Comparison.html?theme=' + theme);
-      };
-      syncComparisonTheme();
+      initComparisonModal();
       // Modal Tabs Switcher
       const modalTabBtns = document.querySelectorAll('.modal-tab-btn');
       modalTabBtns.forEach(btn => {
@@ -6577,6 +7272,7 @@ function initCommunityApp() {
             appState[stateKey].mode = 'auto';
             appState[stateKey].min = null;
             appState[stateKey].max = null;
+            appState.chartRevision = (appState.chartRevision || 0) + 1;
             renderCharts();
             showToast(`${chartKey.toUpperCase()} Scale reset to Auto`);
           });
@@ -6616,6 +7312,7 @@ function initCommunityApp() {
           appState.scalePlr.mode = 'auto';
           appState.scalePlr.min = null;
           appState.scalePlr.max = null;
+          appState.chartRevision = (appState.chartRevision || 0) + 1;
           renderCharts();
           showToast('Reset PLR curve scale to Auto');
         });
@@ -6627,6 +7324,7 @@ function initCommunityApp() {
           appState.scaleTemp.mode = 'auto';
           appState.scaleTemp.min = null;
           appState.scaleTemp.max = null;
+          appState.chartRevision = (appState.chartRevision || 0) + 1;
           renderCharts();
           showToast('Reset temperature curve scale to Auto');
         });

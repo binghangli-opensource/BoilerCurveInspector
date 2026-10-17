@@ -1,3 +1,11 @@
+================================================================================
+SIMBOILER SOFTWARE LICENSE NOTICES
+================================================================================
+
+1. Boiler Curve Inspector (located in community/ and dist/index.html):
+Application code: MIT. Third-party data/code retain their upstream terms.
+See THIRD_PARTY_NOTICES.md and licenses/; these exceptions also apply to dist/.
+--------------------------------------------------------------------------------
 MIT License
 
 Copyright (c) 2026 Binghang Li
@@ -19,3 +27,40 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+================================================================================
+2. SimBoiler Pro Studio (located in pro/):
+--------------------------------------------------------------------------------
+PROPRIETARY AND CONFIDENTIAL SOFTWARE LICENSE
+Copyright (c) 2026 Binghang Li. All Rights Reserved.
+
+This software, its source code, thermodynamic algorithms, and associated
+documentation are the confidential and proprietary intellectual property of
+Binghang Li.
+
+TERMS AND CONDITIONS FOR USE:
+
+1. INTERNAL USE ONLY:
+   This software is licensed solely for internal engineering analysis, building
+   energy simulation, and authorized evaluation.
+
+2. PROHIBITION OF REDISTRIBUTION:
+   Unauthorized copying, reverse engineering, decompilation, modification,
+   distribution, sublicensing, or public dissemination of this codebase, in whole
+   or in part, in source or compiled form, is strictly prohibited without prior
+   express written permission from the copyright owner.
+
+3. SIMULATION OUTPUTS:
+   EnergyPlus IDF objects and tabular coefficient data generated using this
+   software may be utilized within authorized building performance modeling
+   projects, provided that direct commercial reselling or repackaging of the
+   software tool itself is not performed.
+
+DISCLAIMER OF WARRANTY:
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY
+ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE THEREOF.
+================================================================================
